@@ -1,0 +1,11 @@
+key: rapid-movement
+id: AML-SCN-002
+version: 1
+family: rapid-movement
+case: should-alert
+control_id: AML-RMF-001
+name: Rapid Movement of Funds
+description: Synthetic funds received and rapidly dispersed to multiple counterparties.
+expected:
+  alert: true
+  severity: high

@@ -1,0 +1,9 @@
+key: volume-deviation-no-alert
+id: AML-SCN-006
+version: 1
+family: volume-deviation
+case: should-not-alert
+control_id: AML-VOL-001
+name: Volume deviation — no alert
+description: Incoming activity remains consistent with the customer baseline.
+expected: {alert: false, severity: null}

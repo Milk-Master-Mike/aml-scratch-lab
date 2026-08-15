@@ -1,0 +1,15 @@
+id: AML-RMF-001
+name: Rapid Movement of Funds
+version: 2
+enabled: true
+owner: Financial Crime Controls
+description: Demonstration-only thresholds for rapid synthetic fund movement.
+severity: high
+evaluator: rapid_movement
+scenario_coverage: [normal, rapid-movement]
+conditions:
+  minimum_incoming: 10000
+  outgoing_ratio: 0.8
+  minimum_counterparties: 3
+  window_hours: 24
+evidence: [transactions, counterparties, customer_baseline]

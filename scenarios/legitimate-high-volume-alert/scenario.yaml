@@ -1,0 +1,9 @@
+key: legitimate-high-volume-alert
+id: AML-SCN-015
+version: 1
+family: legitimate-high-volume
+case: should-alert
+control_id: AML-VOL-001
+name: High-volume activity — alert
+description: High volume lacks a matching established customer baseline.
+expected: {alert: true, severity: high}

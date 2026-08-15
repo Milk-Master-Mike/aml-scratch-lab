@@ -1,0 +1,14 @@
+id: AML-CIR-001
+name: Circular Funds Flow
+version: 2
+enabled: true
+owner: Network Analytics
+description: Detects funds returning to their origin through a multi-account path.
+severity: high
+evaluator: circular_flow
+scenario_coverage: [circular-flow-alert, circular-flow-no-alert]
+conditions:
+  minimum_hops: 3
+  window_hours: 24
+  minimum_amount: 1000
+evidence: [transactions, counterparties, network_path]

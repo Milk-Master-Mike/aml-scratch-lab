@@ -1,0 +1,9 @@
+key: legitimate-high-volume-no-alert
+id: AML-SCN-016
+version: 1
+family: legitimate-high-volume
+case: should-not-alert
+control_id: AML-VOL-001
+name: Legitimate high-volume activity
+description: High volume is consistent with the customer's established business profile.
+expected: {alert: false, severity: null}

@@ -1,0 +1,9 @@
+key: funnel-activity-alert
+id: AML-SCN-007
+version: 1
+family: funnel-activity
+case: should-alert
+control_id: AML-FUN-001
+name: Funnel activity — alert
+description: Funds arrive from four sources and are rapidly consolidated outbound.
+expected: {alert: true, severity: high}

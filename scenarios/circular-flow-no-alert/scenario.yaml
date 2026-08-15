@@ -1,0 +1,9 @@
+key: circular-flow-no-alert
+id: AML-SCN-010
+version: 1
+family: circular-flow
+case: should-not-alert
+control_id: AML-CIR-001
+name: Circular flow — no alert
+description: A three-hop path does not return funds to the origin.
+expected: {alert: false, severity: null}

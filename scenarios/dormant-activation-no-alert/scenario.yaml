@@ -1,0 +1,9 @@
+key: dormant-activation-no-alert
+id: AML-SCN-012
+version: 1
+family: dormant-activation
+case: should-not-alert
+control_id: AML-DOR-001
+name: Dormant activation — no alert
+description: Post-dormancy activity remains below the activation threshold.
+expected: {alert: false, severity: null}

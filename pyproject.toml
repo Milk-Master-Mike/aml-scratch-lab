@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "aml-scratch-lab"
+version = "0.1.0"
+description = "Synthetic AML control testing platform"
+requires-python = ">=3.10"
+dependencies = ["alembic==1.19.1", "fastapi==0.141.1", "psycopg[binary]==3.3.4", "pydantic==2.13.4", "pydantic-settings==2.15.0", "pyyaml==6.0.3", "sqlalchemy==2.0.52", "uvicorn[standard]==0.52.3"]
+[project.optional-dependencies]
+dev = ["httpx==0.28.1", "pytest==8.4.2", "ruff==0.16.3"]
+[tool.setuptools.packages.find]
+include = ["apps*", "engine*"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+[tool.ruff]
+line-length = 100
+target-version = "py310"

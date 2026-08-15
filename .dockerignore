@@ -1,0 +1,11 @@
+.git
+.github
+.venv
+**/__pycache__
+**/*.pyc
+**/node_modules
+**/.next
+.pytest_cache
+scratchlab.db
+workspace
+AML_ScratchLab_Build_Blueprint.md

@@ -1,0 +1,13 @@
+id: AML-DOR-001
+name: Dormant Account Activation
+version: 2
+enabled: true
+owner: Customer Risk Analytics
+description: Detects significant activity following an extended inactive period.
+severity: medium
+evaluator: dormant_activation
+scenario_coverage: [dormant-activation-alert, dormant-activation-no-alert]
+conditions:
+  dormant_days: 180
+  activation_amount: 10000
+evidence: [transactions, account_history]

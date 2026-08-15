@@ -1,0 +1,9 @@
+key: customer-profile-mismatch-alert
+id: AML-SCN-013
+version: 1
+family: customer-profile-mismatch
+case: should-alert
+control_id: AML-PRF-001
+name: Customer-profile mismatch — alert
+description: Activity is inconsistent with the customer's documented expected volume.
+expected: {alert: true, severity: high}

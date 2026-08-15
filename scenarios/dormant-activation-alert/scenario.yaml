@@ -1,0 +1,9 @@
+key: dormant-activation-alert
+id: AML-SCN-011
+version: 1
+family: dormant-activation
+case: should-alert
+control_id: AML-DOR-001
+name: Dormant activation — alert
+description: Significant funds enter an account after more than a year of inactivity.
+expected: {alert: true, severity: medium}

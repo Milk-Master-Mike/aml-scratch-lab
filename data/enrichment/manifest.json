@@ -1,0 +1,8 @@
+{
+  "snapshot_id": "scratchlab-m3-2026-08-15",
+  "files": {
+    "ofac.json": "f2bf3eaea7c42d3fe2422b88dcba6763741851d42cbf1eba75a9e80e703f7c06",
+    "fincen.json": "87ba7df35bd356262036738ff7f1465abde7dd46b963926f4d7ad373bc264457",
+    "mock_media.json": "d7584c4ccdba7025c65837c9638e3017b7c10398fcb49cd752d41b7b672f5ec9"
+  }
+}

@@ -5,6 +5,7 @@ COPY alembic.ini ./
 COPY alembic ./alembic
 COPY apps ./apps
 COPY engine ./engine
+COPY data ./data
 COPY controls ./controls
 COPY scenarios ./scenarios
 RUN pip install --no-cache-dir .

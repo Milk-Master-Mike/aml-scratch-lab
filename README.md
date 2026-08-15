@@ -10,9 +10,9 @@ behavior with reproducible evidence.
 > proprietary bank rules. ScratchLab assists control testing and does not determine
 > criminality.
 
-## Milestone 2
+## Milestone 3
 
-ScratchLab is now a complete local control-testing platform:
+ScratchLab is now a complete local control-testing and alert-enrichment platform:
 
 - Seeded synthetic customers, accounts, and 30/60/90-day transaction baselines
 - 16 deterministic scenarios with paired alert and no-alert coverage
@@ -25,6 +25,11 @@ ScratchLab is now a complete local control-testing platform:
 - FastAPI scenario and test-run endpoints
 - A dark analyst UI for scenario forging, the scenario library, control management,
   and regression analysis
+- Automatic alert enrichment with internal evidence, OFAC screening, mapped FinCEN
+  intelligence, and deterministic fictional adverse media
+- Normalized, timestamped evidence packets with isolated per-source failure handling
+- Pinned public-source subsets with provenance and integrity checks for offline demos
+- An evidence panel in Scenario Forge that preserves human-review language
 
 ## Run locally
 
@@ -45,6 +50,7 @@ proves that the rapid-movement scenario fails, and leaves the active definition 
 - `POST /api/v1/regression-runs`
 - `POST /api/v1/regression-runs/intentional-regression`
 - `GET /api/v1/regression-runs/{batch_id}`
+- `GET /api/v1/alerts/{alert_id}/evidence`
 
 ## Test
 
@@ -64,6 +70,9 @@ The seed controls IDs, names, accounts, transaction amounts, and simulation time
 Execution timestamps and test-run IDs are operational metadata and intentionally vary.
 `scenario_id` is retained for the assertion harness but removed from the monitoring
 engine's transaction view.
+
+The bundled OFAC data is a curated demonstration subset, not a complete screening list.
+Mock adverse-media records are entirely fictional. Candidate matches always require human review.
 
 ## Architecture
 

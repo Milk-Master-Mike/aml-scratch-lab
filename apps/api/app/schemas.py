@@ -39,12 +39,43 @@ class ControlToggle(BaseModel):
 
 
 class AlertResponse(BaseModel):
+    alert_id: str
     control_id: str
     account_id: str
     severity: str
     triggered_conditions: list[str]
     transaction_ids: list[str]
     disposition: str = "Human review required"
+
+
+class EvidenceFinding(BaseModel):
+    finding_id: str
+    finding_type: str
+    outcome: str
+    title: str
+    summary: str
+    score: float | None = None
+    source_record_id: str | None = None
+    details: dict
+
+
+class EvidenceSource(BaseModel):
+    source: str
+    status: str
+    observed_at: datetime
+    provenance: dict
+    error: str | None = None
+    findings: list[EvidenceFinding]
+
+
+class EvidencePacket(BaseModel):
+    job_id: str
+    alert_id: str
+    status: str
+    started_at: datetime
+    completed_at: datetime | None
+    disposition: str = "Human review required"
+    sources: list[EvidenceSource]
 
 
 class FlowResponse(BaseModel):
@@ -68,6 +99,7 @@ class RunResponse(BaseModel):
     result: str
     failure_reason: str | None = None
     alert: AlertResponse | None
+    enrichment: EvidencePacket | None = None
     flows: list[FlowResponse]
     evidence: dict
 

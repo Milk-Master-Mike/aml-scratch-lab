@@ -1,0 +1,9 @@
+key: abnormal-velocity-alert
+id: AML-SCN-003
+version: 1
+family: abnormal-velocity
+case: should-alert
+control_id: AML-VEL-001
+name: Abnormal velocity — alert
+description: Twelve outbound payments occur inside one hour.
+expected: {alert: true, severity: medium}

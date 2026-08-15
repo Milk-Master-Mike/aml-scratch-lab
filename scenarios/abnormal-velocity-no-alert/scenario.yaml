@@ -1,0 +1,9 @@
+key: abnormal-velocity-no-alert
+id: AML-SCN-004
+version: 1
+family: abnormal-velocity
+case: should-not-alert
+control_id: AML-VEL-001
+name: Abnormal velocity — no alert
+description: A short burst remains below the transaction-count threshold.
+expected: {alert: false, severity: null}

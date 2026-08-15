@@ -1,0 +1,9 @@
+key: funnel-activity-no-alert
+id: AML-SCN-008
+version: 1
+family: funnel-activity
+case: should-not-alert
+control_id: AML-FUN-001
+name: Funnel activity — no alert
+description: Limited-source activity remains below the funnel thresholds.
+expected: {alert: false, severity: null}

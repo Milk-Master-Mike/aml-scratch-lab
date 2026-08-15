@@ -1,0 +1,9 @@
+key: circular-flow-alert
+id: AML-SCN-009
+version: 1
+family: circular-flow
+case: should-alert
+control_id: AML-CIR-001
+name: Circular flow — alert
+description: Funds traverse three accounts and return to the origin.
+expected: {alert: true, severity: high}

@@ -1,0 +1,9 @@
+key: volume-deviation-alert
+id: AML-SCN-005
+version: 1
+family: volume-deviation
+case: should-alert
+control_id: AML-VOL-001
+name: Volume deviation — alert
+description: Incoming volume materially exceeds the documented monthly baseline.
+expected: {alert: true, severity: high}

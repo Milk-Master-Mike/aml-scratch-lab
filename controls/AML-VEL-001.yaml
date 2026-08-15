@@ -1,0 +1,13 @@
+id: AML-VEL-001
+name: Abnormal Transaction Velocity
+version: 2
+enabled: true
+owner: Transaction Monitoring
+description: Detects an unusual count of outbound transactions in a short window.
+severity: medium
+evaluator: abnormal_velocity
+scenario_coverage: [abnormal-velocity-alert, abnormal-velocity-no-alert]
+conditions:
+  minimum_transactions: 10
+  window_hours: 1
+evidence: [transactions, timestamps, counterparties]

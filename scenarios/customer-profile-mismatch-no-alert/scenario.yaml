@@ -1,0 +1,9 @@
+key: customer-profile-mismatch-no-alert
+id: AML-SCN-014
+version: 1
+family: customer-profile-mismatch
+case: should-not-alert
+control_id: AML-PRF-001
+name: Customer-profile mismatch — no alert
+description: Activity remains proportionate to the customer's documented profile.
+expected: {alert: false, severity: null}

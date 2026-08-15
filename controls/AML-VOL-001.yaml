@@ -1,0 +1,12 @@
+id: AML-VOL-001
+name: Customer Volume Deviation
+version: 2
+enabled: true
+owner: Customer Risk Analytics
+description: Compares incoming activity with the customer's expected monthly volume.
+severity: high
+evaluator: volume_deviation
+scenario_coverage: [volume-deviation-alert, volume-deviation-no-alert, legitimate-high-volume-alert, legitimate-high-volume-no-alert]
+conditions:
+  volume_multiplier: 2.0
+evidence: [transactions, customer_baseline]

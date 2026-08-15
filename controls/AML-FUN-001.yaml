@@ -1,0 +1,15 @@
+id: AML-FUN-001
+name: Funnel Account Activity
+version: 2
+enabled: true
+owner: Transaction Monitoring
+description: Detects funds consolidated from several sources and rapidly transferred onward.
+severity: high
+evaluator: funnel_activity
+scenario_coverage: [funnel-activity-alert, funnel-activity-no-alert]
+conditions:
+  minimum_incoming: 10000
+  outgoing_ratio: 0.8
+  minimum_sources: 3
+  window_hours: 24
+evidence: [transactions, counterparties, transaction_timeline]

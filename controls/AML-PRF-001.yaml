@@ -1,0 +1,12 @@
+id: AML-PRF-001
+name: Customer Profile Mismatch
+version: 2
+enabled: true
+owner: Customer Due Diligence
+description: Detects activity inconsistent with the customer's documented expected volume.
+severity: high
+evaluator: profile_mismatch
+scenario_coverage: [customer-profile-mismatch-alert, customer-profile-mismatch-no-alert]
+conditions:
+  volume_multiplier: 3.0
+evidence: [transactions, customer_profile, customer_baseline]

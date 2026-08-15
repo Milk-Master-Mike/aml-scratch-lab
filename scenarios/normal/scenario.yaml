@@ -1,0 +1,11 @@
+key: normal
+id: AML-SCN-001
+version: 1
+family: rapid-movement
+case: should-not-alert
+control_id: AML-RMF-001
+name: Normal customer activity
+description: Deterministic legitimate baseline activity.
+expected:
+  alert: false
+  severity: null

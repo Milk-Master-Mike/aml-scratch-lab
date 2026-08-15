@@ -1,0 +1,19 @@
+{
+  "provenance": {
+    "publisher": "Financial Crimes Enforcement Network",
+    "snapshot_date": "2026-08-15",
+    "scope": "Curated advisory metadata and demonstration mappings"
+  },
+  "advisories": [
+    {
+      "id": "FIN-2024-A002",
+      "title": "Supplemental Advisory on Illicit Fentanyl Procurement",
+      "summary": "Public guidance describing transaction patterns and vigilance considerations in illicit procurement networks.",
+      "url": "https://www.fincen.gov/resources/advisories/fincen-advisory-fin-2024-a002",
+      "scenario_families": ["rapid-movement", "funnel-activity"],
+      "indicators": ["rapid movement", "multiple counterparties", "cross-network funds flow"],
+      "mapped_scenarios": ["AML-SCN-002", "AML-SCN-007"],
+      "mapped_controls": ["AML-RMF-001", "AML-FUN-001"]
+    }
+  ]
+}

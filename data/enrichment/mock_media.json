@@ -1,0 +1,16 @@
+{
+  "provenance": {
+    "publisher": "ScratchLab deterministic fixture library",
+    "snapshot_date": "2026-08-15",
+    "scope": "Entirely fictional demonstration content"
+  },
+  "articles": [
+    {
+      "id": "SYN-MEDIA-001",
+      "publisher": "Daily Synthetic News",
+      "subject": "Avery Williams",
+      "headline": "Demo vendor review mentions Avery Williams",
+      "summary": "A fictional record created solely to demonstrate evidence enrichment. No real-world allegation is made."
+    }
+  ]
+}

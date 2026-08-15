@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from apps.api.app.db_models import (
@@ -14,14 +14,27 @@ from apps.api.app.db_models import (
     ControlRow,
     ControlVersionRow,
     CustomerRow,
+    EnrichmentJobRow,
+    EnrichmentSourceRow,
+    EvidenceFindingRow,
     RegressionBatchRow,
     ScenarioRow,
     TestRunRow,
     TransactionRow,
 )
-from apps.api.app.schemas import AlertResponse, FlowResponse, RegressionSummary, RunResponse
+from apps.api.app.schemas import (
+    AlertResponse,
+    EvidenceFinding,
+    EvidencePacket,
+    EvidenceSource,
+    FlowResponse,
+    RegressionSummary,
+    RunResponse,
+)
 from engine.aml.controls import ControlDefinition, load_controls
 from engine.aml.evaluator import evaluate
+from engine.enrichment.models import EnrichmentContext
+from engine.enrichment.runner import run_adapters
 from engine.scenarios.generator import generate_scenario
 from engine.scenarios.loader import ScenarioDefinition, load_scenarios
 
@@ -161,17 +174,23 @@ def execute(
         )
     )
     session.flush()
+    alert_id = None
+    enrichment = None
     if alert:
-        session.add(
-            AlertRow(
-                run_id=run_id,
-                control_id=alert.control_id,
-                account_id=alert.account_id,
-                severity=alert.severity,
-                triggered_conditions=list(alert.triggered_conditions),
-                transaction_ids=list(alert.transaction_ids),
-            )
+        alert_id = str(uuid.uuid4())
+        alert_row = AlertRow(
+            alert_id=alert_id,
+            run_id=run_id,
+            control_id=alert.control_id,
+            account_id=alert.account_id,
+            severity=alert.severity,
+            triggered_conditions=list(alert.triggered_conditions),
+            transaction_ids=list(alert.transaction_ids),
         )
+        session.add(alert_row)
+        session.flush()
+        context = enrichment_context(session, scenario, dataset, alert)
+        enrichment = persist_enrichment(session, alert_row, context)
     session.commit()
 
     customer_names = {
@@ -195,6 +214,7 @@ def execute(
     ]
     alert_response = (
         AlertResponse(
+            alert_id=alert_id,
             control_id=alert.control_id,
             account_id=alert.account_id,
             severity=alert.severity,
@@ -222,6 +242,7 @@ def execute(
         result=result,
         failure_reason=reason,
         alert=alert_response,
+        enrichment=enrichment,
         flows=flows,
         evidence=evidence,
     )
@@ -289,6 +310,7 @@ def stored_run_response(session: Session, row: TestRunRow) -> RunResponse:
     alert_row = session.scalar(select(AlertRow).where(AlertRow.run_id == row.run_id))
     alert = (
         AlertResponse(
+            alert_id=alert_row.alert_id,
             control_id=alert_row.control_id,
             account_id=alert_row.account_id,
             severity=alert_row.severity,
@@ -313,6 +335,144 @@ def stored_run_response(session: Session, row: TestRunRow) -> RunResponse:
         result=row.result,
         failure_reason=row.failure_reason,
         alert=alert,
+        enrichment=evidence_packet(session, alert_row.alert_id) if alert_row else None,
         flows=[],
         evidence=row.evidence,
     )
+
+
+def enrichment_context(
+    session: Session, scenario: ScenarioDefinition, dataset, alert
+) -> EnrichmentContext:
+    accounts = {item.account_id: item for item in dataset.accounts}
+    customers = {item.customer_id: item for item in dataset.customers}
+    account = accounts[alert.account_id]
+    customer = customers[account.customer_id]
+    relevant_ids = set(alert.transaction_ids)
+    transactions = tuple(
+        item for item in dataset.transactions if item.transaction_id in relevant_ids
+    )
+    counterparty_account_ids = {
+        account_id
+        for item in transactions
+        for account_id in (item.source_account, item.destination_account)
+        if account_id and account_id != account.account_id and account_id in accounts
+    }
+    counterparties = tuple(
+        customers[accounts[account_id].customer_id]
+        for account_id in sorted(counterparty_account_ids)
+    )
+    prior_alerts = session.scalar(
+        select(func.count()).select_from(AlertRow).where(AlertRow.account_id == account.account_id)
+    )
+    prior_runs = session.scalar(
+        select(func.count()).select_from(TestRunRow).where(TestRunRow.scenario_id == scenario.id)
+    )
+    return EnrichmentContext(
+        scenario_key=scenario.key,
+        scenario_family=scenario.family,
+        control_id=alert.control_id,
+        account=account,
+        customer=customer,
+        counterparties=counterparties,
+        transactions=transactions,
+        prior_alerts=max((prior_alerts or 0) - 1, 0),
+        prior_test_runs=max((prior_runs or 0) - 1, 0),
+    )
+
+
+def persist_enrichment(
+    session: Session, alert: AlertRow, context: EnrichmentContext
+) -> EvidencePacket:
+    started_at = datetime.now(timezone.utc)
+    job = EnrichmentJobRow(
+        job_id=str(uuid.uuid4()),
+        alert_id=alert.alert_id,
+        status="running",
+        started_at=started_at,
+    )
+    session.add(job)
+    session.flush()
+    results = run_adapters(context)
+    for result in results:
+        execution = EnrichmentSourceRow(
+            execution_id=str(uuid.uuid4()),
+            job_id=job.job_id,
+            source=result.source,
+            status=result.status,
+            observed_at=result.observed_at,
+            provenance=result.provenance,
+            error=result.error,
+        )
+        session.add(execution)
+        for finding in result.findings:
+            session.add(
+                EvidenceFindingRow(
+                    finding_id=str(uuid.uuid4()),
+                    execution_id=execution.execution_id,
+                    finding_type=finding.finding_type,
+                    outcome=finding.outcome,
+                    title=finding.title,
+                    summary=finding.summary,
+                    score=Decimal(str(finding.score)) if finding.score is not None else None,
+                    source_record_id=finding.source_record_id,
+                    details=finding.details,
+                )
+            )
+    failures = sum(item.status == "failed" for item in results)
+    job.status = "failed" if failures == len(results) else "partial" if failures else "completed"
+    job.completed_at = datetime.now(timezone.utc)
+    session.flush()
+    return evidence_packet(session, alert.alert_id)
+
+
+def evidence_packet(session: Session, alert_id: str) -> EvidencePacket | None:
+    job = session.scalar(select(EnrichmentJobRow).where(EnrichmentJobRow.alert_id == alert_id))
+    if job is None:
+        return None
+    executions = session.scalars(
+        select(EnrichmentSourceRow)
+        .where(EnrichmentSourceRow.job_id == job.job_id)
+        .order_by(EnrichmentSourceRow.source)
+    ).all()
+    sources = []
+    for execution in executions:
+        findings = session.scalars(
+            select(EvidenceFindingRow)
+            .where(EvidenceFindingRow.execution_id == execution.execution_id)
+            .order_by(EvidenceFindingRow.finding_id)
+        ).all()
+        sources.append(
+            EvidenceSource(
+                source=execution.source,
+                status=execution.status,
+                observed_at=as_utc(execution.observed_at),
+                provenance=execution.provenance,
+                error=execution.error,
+                findings=[
+                    EvidenceFinding(
+                        finding_id=item.finding_id,
+                        finding_type=item.finding_type,
+                        outcome=item.outcome,
+                        title=item.title,
+                        summary=item.summary,
+                        score=float(item.score) if item.score is not None else None,
+                        source_record_id=item.source_record_id,
+                        details=item.details,
+                    )
+                    for item in findings
+                ],
+            )
+        )
+    return EvidencePacket(
+        job_id=job.job_id,
+        alert_id=job.alert_id,
+        status=job.status,
+        started_at=as_utc(job.started_at),
+        completed_at=as_utc(job.completed_at) if job.completed_at else None,
+        sources=sources,
+    )
+
+
+def as_utc(value: datetime) -> datetime:
+    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)

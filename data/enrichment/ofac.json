@@ -1,0 +1,11 @@
+{
+  "provenance": {
+    "publisher": "U.S. Department of the Treasury, Office of Foreign Assets Control",
+    "source_url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.XML",
+    "snapshot_date": "2026-08-15",
+    "scope": "Curated demonstration subset; not a complete screening list"
+  },
+  "records": [
+    {"source_record_id": "demo-ofac-1", "name": "EMPRESA CUBANA DE AVIACION", "aliases": ["CUBANA AIRLINES"], "programs": ["CUBA"]}
+  ]
+}

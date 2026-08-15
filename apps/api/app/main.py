@@ -8,10 +8,11 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from apps.api.app.database import get_session
-from apps.api.app.db_models import ControlRow, RegressionBatchRow, TestRunRow
+from apps.api.app.db_models import AlertRow, ControlRow, RegressionBatchRow, TestRunRow
 from apps.api.app.schemas import (
     ControlSummary,
     ControlToggle,
+    EvidencePacket,
     RegressionSummary,
     RunRequest,
     RunResponse,
@@ -20,6 +21,7 @@ from apps.api.app.schemas import (
 from apps.api.app.service import (
     batch_response,
     definitions,
+    evidence_packet,
     execute,
     register_control,
     run_regression,
@@ -28,7 +30,7 @@ from apps.api.app.service import (
 
 SessionDependency = Annotated[Session, Depends(get_session)]
 
-app = FastAPI(title="AML ScratchLab API", version="0.2.0")
+app = FastAPI(title="AML ScratchLab API", version="0.3.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"http://localhost:\d+",
@@ -127,6 +129,16 @@ async def test_run(run_id: str, session: SessionDependency) -> RunResponse:
     if row is None:
         raise HTTPException(status_code=404, detail="Unknown test run")
     return stored_run_response(session, row)
+
+
+@app.get("/api/v1/alerts/{alert_id}/evidence", response_model=EvidencePacket)
+async def alert_evidence(alert_id: str, session: SessionDependency) -> EvidencePacket:
+    if session.get(AlertRow, alert_id) is None:
+        raise HTTPException(status_code=404, detail="Unknown alert")
+    packet = evidence_packet(session, alert_id)
+    if packet is None:
+        raise HTTPException(status_code=404, detail="Evidence packet unavailable")
+    return packet
 
 
 @app.post("/api/v1/regression-runs", response_model=RegressionSummary)

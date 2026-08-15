@@ -121,3 +121,42 @@ class AlertRow(Base):
     triggered_conditions: Mapped[list] = mapped_column(JSON)
     transaction_ids: Mapped[list] = mapped_column(JSON)
     disposition: Mapped[str] = mapped_column(Text, default="Human review required")
+
+
+class EnrichmentJobRow(Base):
+    __tablename__ = "enrichment_jobs"
+    job_id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    alert_id: Mapped[str] = mapped_column(ForeignKey("alerts.alert_id"), unique=True)
+    status: Mapped[str] = mapped_column(String(16))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class EnrichmentSourceRow(Base):
+    __tablename__ = "enrichment_sources"
+    execution_id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    job_id: Mapped[str] = mapped_column(ForeignKey("enrichment_jobs.job_id"))
+    source: Mapped[str] = mapped_column(String(32))
+    status: Mapped[str] = mapped_column(String(16))
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    provenance: Mapped[dict] = mapped_column(JSON)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class EvidenceFindingRow(Base):
+    __tablename__ = "evidence_findings"
+    finding_id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    execution_id: Mapped[str] = mapped_column(ForeignKey("enrichment_sources.execution_id"))
+    finding_type: Mapped[str] = mapped_column(String(32))
+    outcome: Mapped[str] = mapped_column(String(32))
+    title: Mapped[str] = mapped_column(String(200))
+    summary: Mapped[str] = mapped_column(Text)
+    score: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
+    source_record_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    details: Mapped[dict] = mapped_column(JSON)

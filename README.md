@@ -2,6 +2,8 @@
 
 **Synthetic AML Control Testing, Investigation & Evidence Platform**
 
+> **Status:** Active development. Milestone 4 is complete; Milestone 5 is planned.
+
 ScratchLab creates deterministic synthetic banking activity, injects known scenarios,
 evaluates version-controlled monitoring controls, and proves expected-versus-actual
 behavior with reproducible evidence.
@@ -9,6 +11,11 @@ behavior with reproducible evidence.
 > All customers and transactions are synthetic. Demonstration controls do not represent
 > proprietary bank rules. ScratchLab assists control testing and does not determine
 > criminality.
+
+![ScratchLab Command Center showing control health, test coverage, cases, transaction activity, and source status](docs/images/command-center.png)
+
+Designed and built by **Michael Weeks Jr.** as a portfolio project demonstrating
+automation engineering, control testing, explainable evidence, and investigator-first UX.
 
 ## Milestone 4
 
@@ -88,9 +95,11 @@ Mock adverse-media records are entirely fictional. Candidate matches always requ
 ## Architecture
 
 ```text
-Next.js testing workspaces → FastAPI → deterministic scenario library
-                                         ↓
+Next.js testing workspaces -> FastAPI -> deterministic scenario library
+                                         |
+                                         v
                                typed YAML control dispatch
-                                         ↓
+                                         |
+                                         v
                       PostgreSQL versions, batches, evidence, results
 ```

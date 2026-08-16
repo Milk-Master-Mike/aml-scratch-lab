@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session
 from apps.api.app.db_models import (
     AccountRow,
     AlertRow,
+    AnalystNoteRow,
+    CaseRow,
     ControlRow,
     ControlVersionRow,
     CustomerRow,
@@ -24,12 +26,20 @@ from apps.api.app.db_models import (
 )
 from apps.api.app.schemas import (
     AlertResponse,
+    AnalystNote,
+    CaseDetail,
+    CaseGraph,
+    CaseSummary,
+    DashboardResponse,
     EvidenceFinding,
     EvidencePacket,
     EvidenceSource,
     FlowResponse,
+    GraphEdge,
+    GraphNode,
     RegressionSummary,
     RunResponse,
+    TransactionDetail,
 )
 from engine.aml.controls import ControlDefinition, load_controls
 from engine.aml.evaluator import evaluate
@@ -175,6 +185,7 @@ def execute(
     )
     session.flush()
     alert_id = None
+    case_id = None
     enrichment = None
     if alert:
         alert_id = str(uuid.uuid4())
@@ -189,6 +200,17 @@ def execute(
         )
         session.add(alert_row)
         session.flush()
+        case_id = str(uuid.uuid4())
+        session.add(
+            CaseRow(
+                case_id=case_id,
+                case_number=f"AML-{executed_at.year}-{case_id[:8].upper()}",
+                alert_id=alert_id,
+                status="open",
+                created_at=executed_at,
+                updated_at=executed_at,
+            )
+        )
         context = enrichment_context(session, scenario, dataset, alert)
         enrichment = persist_enrichment(session, alert_row, context)
     session.commit()
@@ -245,6 +267,7 @@ def execute(
         enrichment=enrichment,
         flows=flows,
         evidence=evidence,
+        case_id=case_id,
     )
 
 
@@ -308,6 +331,11 @@ def stored_run_response(session: Session, row: TestRunRow) -> RunResponse:
     scenario = next(item for item in scenarios.values() if item.id == row.scenario_id)
     control = controls[row.control_id]
     alert_row = session.scalar(select(AlertRow).where(AlertRow.run_id == row.run_id))
+    case_row = (
+        session.scalar(select(CaseRow).where(CaseRow.alert_id == alert_row.alert_id))
+        if alert_row
+        else None
+    )
     alert = (
         AlertResponse(
             alert_id=alert_row.alert_id,
@@ -338,6 +366,7 @@ def stored_run_response(session: Session, row: TestRunRow) -> RunResponse:
         enrichment=evidence_packet(session, alert_row.alert_id) if alert_row else None,
         flows=[],
         evidence=row.evidence,
+        case_id=case_row.case_id if case_row else None,
     )
 
 
@@ -476,3 +505,278 @@ def evidence_packet(session: Session, alert_id: str) -> EvidencePacket | None:
 
 def as_utc(value: datetime) -> datetime:
     return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+
+def case_summary(session: Session, case: CaseRow) -> CaseSummary:
+    alert = session.get(AlertRow, case.alert_id)
+    run = session.get(TestRunRow, alert.run_id)
+    scenario = session.get(ScenarioRow, run.scenario_id)
+    account = session.get(AccountRow, alert.account_id)
+    customer = session.get(CustomerRow, account.customer_id)
+    return CaseSummary(
+        case_id=case.case_id,
+        case_number=case.case_number,
+        status=case.status,
+        severity=alert.severity,
+        customer_name=customer.synthetic_name,
+        control_id=alert.control_id,
+        scenario_key=scenario.key,
+        created_at=as_utc(case.created_at),
+        updated_at=as_utc(case.updated_at),
+    )
+
+
+def list_cases(session: Session, status: str | None = None) -> list[CaseSummary]:
+    query = select(CaseRow).order_by(CaseRow.created_at.desc())
+    if status:
+        query = query.where(CaseRow.status == status)
+    return [case_summary(session, item) for item in session.scalars(query).all()]
+
+
+def case_detail(session: Session, case: CaseRow) -> CaseDetail:
+    summary = case_summary(session, case)
+    alert = session.get(AlertRow, case.alert_id)
+    run = session.get(TestRunRow, alert.run_id)
+    scenario = session.get(ScenarioRow, run.scenario_id)
+    account = session.get(AccountRow, alert.account_id)
+    customer = session.get(CustomerRow, account.customer_id)
+    related = session.scalars(
+        select(AccountRow).where(AccountRow.customer_id == customer.customer_id)
+    ).all()
+    transactions = session.scalars(
+        select(TransactionRow)
+        .where(TransactionRow.transaction_id.in_(alert.transaction_ids))
+        .order_by(TransactionRow.timestamp)
+    ).all()
+    notes = session.scalars(
+        select(AnalystNoteRow)
+        .where(AnalystNoteRow.case_id == case.case_id)
+        .order_by(AnalystNoteRow.created_at)
+    ).all()
+    return CaseDetail(
+        **summary.model_dump(),
+        alert_id=alert.alert_id,
+        run_id=run.run_id,
+        account={
+            "account_id": account.account_id,
+            "account_type": account.account_type,
+            "status": account.status,
+            "balance": float(account.balance),
+            "opened_at": as_utc(account.opened_at),
+        },
+        customer={
+            "customer_id": customer.customer_id,
+            "synthetic_name": customer.synthetic_name,
+            "customer_type": customer.customer_type,
+            "occupation_business_type": customer.occupation_business_type,
+            "risk_level": customer.risk_level,
+            "country": customer.country,
+            "expected_monthly_volume": float(customer.expected_monthly_volume),
+            "opened_at": as_utc(customer.opened_at),
+        },
+        related_accounts=[
+            {
+                "account_id": item.account_id,
+                "account_type": item.account_type,
+                "status": item.status,
+                "balance": float(item.balance),
+            }
+            for item in related
+        ],
+        transactions=[
+            TransactionDetail(
+                transaction_id=item.transaction_id,
+                source_account=item.source_account,
+                destination_account=item.destination_account,
+                amount=float(item.amount),
+                currency=item.currency,
+                transaction_type=item.transaction_type,
+                timestamp=as_utc(item.timestamp),
+                geography=item.geography,
+            )
+            for item in transactions
+        ],
+        triggered_conditions=alert.triggered_conditions,
+        expected={"alert": run.expected_alert, "severity": scenario.definition["expected"].get("severity")},
+        actual={"alert": run.actual_alert, "severity": alert.severity},
+        result=run.result,
+        failure_reason=run.failure_reason,
+        evidence=evidence_packet(session, alert.alert_id),
+        notes=[
+            AnalystNote(
+                note_id=item.note_id,
+                author=item.author,
+                body=item.body,
+                created_at=as_utc(item.created_at),
+            )
+            for item in notes
+        ],
+    )
+
+
+def case_graph(session: Session, case: CaseRow) -> CaseGraph:
+    detail = case_detail(session, case)
+    nodes: dict[str, GraphNode] = {}
+    edges: list[GraphEdge] = []
+    customer_id = detail.customer["customer_id"]
+    nodes[customer_id] = GraphNode(
+        id=customer_id,
+        type="customer",
+        label=detail.customer_name,
+        status=detail.customer["risk_level"],
+        metadata=detail.customer,
+    )
+    account_ids = {
+        value
+        for tx in detail.transactions
+        for value in (tx.source_account, tx.destination_account)
+        if value
+    }
+    account_ids.add(detail.account["account_id"])
+    accounts = session.scalars(select(AccountRow).where(AccountRow.account_id.in_(account_ids))).all()
+    customers = {
+        item.customer_id: item
+        for item in session.scalars(
+            select(CustomerRow).where(
+                CustomerRow.customer_id.in_({item.customer_id for item in accounts})
+            )
+        ).all()
+    }
+    for account in accounts:
+        owner = customers[account.customer_id]
+        if owner.customer_id not in nodes:
+            nodes[owner.customer_id] = GraphNode(
+                id=owner.customer_id,
+                type="customer",
+                label=owner.synthetic_name,
+                status=owner.risk_level,
+                metadata={"customer_type": owner.customer_type, "country": owner.country},
+            )
+        nodes[account.account_id] = GraphNode(
+            id=account.account_id,
+            type="account",
+            label=f"Account {account.account_id[:8].upper()}",
+            status=account.status,
+            metadata={"account_type": account.account_type, "balance": float(account.balance)},
+        )
+        edges.append(GraphEdge(
+            id=f"owns-{owner.customer_id}-{account.account_id}",
+            source=owner.customer_id,
+            target=account.account_id,
+            type="owns",
+            label="owns",
+            metadata={},
+        ))
+    for tx in detail.transactions:
+        if tx.source_account and tx.destination_account:
+            edges.append(GraphEdge(
+                id=tx.transaction_id,
+                source=tx.source_account,
+                target=tx.destination_account,
+                type="transaction",
+                label=f"${tx.amount:,.2f}",
+                highlighted=True,
+                metadata=tx.model_dump(mode="json"),
+            ))
+    packet = detail.evidence
+    if packet:
+        for source in packet.sources:
+            for finding in source.findings:
+                if finding.outcome != "POTENTIAL MATCH":
+                    continue
+                node_id = f"candidate-{finding.finding_id}"
+                nodes[node_id] = GraphNode(
+                    id=node_id,
+                    type="sanctions_candidate",
+                    label=finding.title,
+                    status=finding.outcome,
+                    metadata=finding.model_dump(),
+                )
+                edges.append(GraphEdge(
+                    id=f"match-{finding.finding_id}",
+                    source=customer_id,
+                    target=node_id,
+                    type="possible_match",
+                    label="possible match",
+                    highlighted=True,
+                    metadata={"score": finding.score, "source": source.source},
+                ))
+    return CaseGraph(case_id=case.case_id, nodes=list(nodes.values()), edges=edges)
+
+
+def dashboard(session: Session) -> DashboardResponse:
+    batch = session.scalar(
+        select(RegressionBatchRow)
+        .where(RegressionBatchRow.completed_at.is_not(None))
+        .order_by(RegressionBatchRow.completed_at.desc())
+    )
+    control_health = None
+    coverage = None
+    if batch:
+        tested = batch.passed + batch.failed
+        control_health = round(batch.passed / tested * 100, 2) if tested else None
+        coverage = float(batch.coverage)
+    open_cases = session.scalar(
+        select(func.count()).select_from(CaseRow).where(CaseRow.status != "closed")
+    ) or 0
+    total_alerts = session.scalar(select(func.count()).select_from(AlertRow)) or 0
+    last_test_run = session.scalar(select(func.max(TestRunRow.executed_at)))
+    failures = session.scalars(
+        select(TestRunRow)
+        .where(TestRunRow.result == "FAIL")
+        .order_by(TestRunRow.executed_at.desc())
+        .limit(5)
+    ).all()
+    scenarios, _ = definitions()
+    scenario_keys = {item.id: item.key for item in scenarios.values()}
+    executions = session.scalars(
+        select(EnrichmentSourceRow).order_by(EnrichmentSourceRow.observed_at.desc())
+    ).all()
+    latest_sources = {}
+    for item in executions:
+        latest_sources.setdefault(item.source, item)
+    max_timestamp = session.scalar(select(func.max(TransactionRow.timestamp)))
+    activity = []
+    if max_timestamp:
+        max_timestamp = as_utc(max_timestamp)
+        start = (max_timestamp - timedelta(days=13)).date()
+        rows = session.scalars(
+            select(TransactionRow).where(TransactionRow.timestamp >= datetime.combine(
+                start, datetime.min.time(), tzinfo=timezone.utc
+            ))
+        ).all()
+        for offset in range(14):
+            day = start + timedelta(days=offset)
+            matching = [item for item in rows if as_utc(item.timestamp).date() == day]
+            activity.append({
+                "date": day.isoformat(),
+                "count": len(matching),
+                "volume": float(sum((item.amount for item in matching), Decimal(0))),
+            })
+    return DashboardResponse(
+        control_health=control_health,
+        test_coverage=coverage,
+        open_cases=open_cases,
+        total_alerts=total_alerts,
+        last_test_run=as_utc(last_test_run) if last_test_run else None,
+        recent_failures=[
+            {
+                "run_id": item.run_id,
+                "scenario_key": scenario_keys.get(item.scenario_id, item.scenario_id),
+                "control_id": item.control_id,
+                "reason": item.failure_reason,
+                "executed_at": as_utc(item.executed_at),
+            }
+            for item in failures
+        ],
+        source_health=[
+            {
+                "source": source,
+                "status": item.status,
+                "observed_at": as_utc(item.observed_at),
+                "error": item.error,
+            }
+            for source, item in sorted(latest_sources.items())
+        ],
+        transaction_activity=activity,
+    )

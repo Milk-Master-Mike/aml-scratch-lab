@@ -160,3 +160,22 @@ class EvidenceFindingRow(Base):
     score: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
     source_record_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
     details: Mapped[dict] = mapped_column(JSON)
+
+
+class CaseRow(Base):
+    __tablename__ = "cases"
+    case_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    case_number: Mapped[str] = mapped_column(String(32), unique=True)
+    alert_id: Mapped[str] = mapped_column(ForeignKey("alerts.alert_id"), unique=True)
+    status: Mapped[str] = mapped_column(String(16), default="open")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AnalystNoteRow(Base):
+    __tablename__ = "analyst_notes"
+    note_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    case_id: Mapped[str] = mapped_column(ForeignKey("cases.case_id"))
+    author: Mapped[str] = mapped_column(String(80), default="Demo Analyst")
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

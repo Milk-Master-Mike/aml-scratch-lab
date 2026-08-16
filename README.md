@@ -10,9 +10,16 @@ behavior with reproducible evidence.
 > proprietary bank rules. ScratchLab assists control testing and does not determine
 > criminality.
 
-## Milestone 3
+## Milestone 4
 
 ScratchLab is now a complete local control-testing and alert-enrichment platform:
+
+- A route-based Command Center with control health, investigation demand, source health,
+  recent failures, and transaction activity
+- Persistent alert-backed cases with workflow status and timestamped analyst notes
+- An investigation workspace connecting customer context, alert rationale, transaction
+  timelines, enrichment evidence, and expected-versus-actual control results
+- An interactive entity graph for ownership, transaction flow, and sanctions candidates
 
 - Seeded synthetic customers, accounts, and 30/60/90-day transaction baselines
 - 16 deterministic scenarios with paired alert and no-alert coverage
@@ -51,6 +58,10 @@ proves that the rapid-movement scenario fails, and leaves the active definition 
 - `POST /api/v1/regression-runs/intentional-regression`
 - `GET /api/v1/regression-runs/{batch_id}`
 - `GET /api/v1/alerts/{alert_id}/evidence`
+- `GET /api/v1/dashboard`
+- `GET /api/v1/cases`
+- `GET /api/v1/cases/{case_id}`
+- `GET /api/v1/cases/{case_id}/graph`
 
 ## Test
 

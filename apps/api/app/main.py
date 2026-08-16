@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import uuid
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -8,10 +10,24 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from apps.api.app.database import get_session
-from apps.api.app.db_models import AlertRow, ControlRow, RegressionBatchRow, TestRunRow
+from apps.api.app.db_models import (
+    AlertRow,
+    AnalystNoteRow,
+    CaseRow,
+    ControlRow,
+    RegressionBatchRow,
+    TestRunRow,
+)
 from apps.api.app.schemas import (
+    AnalystNote,
+    AnalystNoteCreate,
+    CaseDetail,
+    CaseGraph,
+    CaseStatusUpdate,
+    CaseSummary,
     ControlSummary,
     ControlToggle,
+    DashboardResponse,
     EvidencePacket,
     RegressionSummary,
     RunRequest,
@@ -20,9 +36,13 @@ from apps.api.app.schemas import (
 )
 from apps.api.app.service import (
     batch_response,
+    case_detail,
+    case_graph,
+    dashboard,
     definitions,
     evidence_packet,
     execute,
+    list_cases,
     register_control,
     run_regression,
     stored_run_response,
@@ -30,7 +50,7 @@ from apps.api.app.service import (
 
 SessionDependency = Annotated[Session, Depends(get_session)]
 
-app = FastAPI(title="AML ScratchLab API", version="0.3.0")
+app = FastAPI(title="AML ScratchLab API", version="0.4.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"http://localhost:\d+",
@@ -164,3 +184,70 @@ async def regression_result(batch_id: str, session: SessionDependency) -> Regres
     if batch is None:
         raise HTTPException(status_code=404, detail="Unknown regression run")
     return batch_response(session, batch)
+
+
+@app.get("/api/v1/dashboard", response_model=DashboardResponse)
+async def command_center(session: SessionDependency) -> DashboardResponse:
+    return dashboard(session)
+
+
+@app.get("/api/v1/cases", response_model=list[CaseSummary])
+async def cases(session: SessionDependency, status: str | None = None) -> list[CaseSummary]:
+    if status is not None and status not in {"open", "in_review", "closed"}:
+        raise HTTPException(status_code=422, detail="Invalid case status")
+    return list_cases(session, status)
+
+
+def require_case(session: Session, case_id: str) -> CaseRow:
+    case = session.get(CaseRow, case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Unknown case")
+    return case
+
+
+@app.get("/api/v1/cases/{case_id}", response_model=CaseDetail)
+async def investigation(case_id: str, session: SessionDependency) -> CaseDetail:
+    return case_detail(session, require_case(session, case_id))
+
+
+@app.patch("/api/v1/cases/{case_id}", response_model=CaseDetail)
+async def update_case(
+    case_id: str, request: CaseStatusUpdate, session: SessionDependency
+) -> CaseDetail:
+    case = require_case(session, case_id)
+    case.status = request.status
+    case.updated_at = datetime.now(timezone.utc)
+    session.commit()
+    return case_detail(session, case)
+
+
+@app.post("/api/v1/cases/{case_id}/notes", response_model=AnalystNote, status_code=201)
+async def add_note(
+    case_id: str, request: AnalystNoteCreate, session: SessionDependency
+) -> AnalystNote:
+    case = require_case(session, case_id)
+    body = request.body.strip()
+    if not body:
+        raise HTTPException(status_code=422, detail="Note body cannot be blank")
+    created_at = datetime.now(timezone.utc)
+    note = AnalystNoteRow(
+        note_id=str(uuid.uuid4()),
+        case_id=case.case_id,
+        author="Demo Analyst",
+        body=body,
+        created_at=created_at,
+    )
+    session.add(note)
+    case.updated_at = created_at
+    session.commit()
+    return AnalystNote(
+        note_id=note.note_id,
+        author=note.author,
+        body=note.body,
+        created_at=created_at,
+    )
+
+
+@app.get("/api/v1/cases/{case_id}/graph", response_model=CaseGraph)
+async def graph(case_id: str, session: SessionDependency) -> CaseGraph:
+    return case_graph(session, require_case(session, case_id))

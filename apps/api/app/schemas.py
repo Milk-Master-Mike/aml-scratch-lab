@@ -102,6 +102,7 @@ class RunResponse(BaseModel):
     enrichment: EvidencePacket | None = None
     flows: list[FlowResponse]
     evidence: dict
+    case_id: str | None = None
 
 
 class RegressionSummary(BaseModel):
@@ -117,3 +118,92 @@ class RegressionSummary(BaseModel):
     coverage: float
     mutation: dict | None
     results: list[RunResponse]
+
+
+class CaseStatusUpdate(BaseModel):
+    status: str = Field(pattern="^(open|in_review|closed)$")
+
+
+class AnalystNoteCreate(BaseModel):
+    body: str = Field(min_length=1, max_length=2000)
+
+
+class AnalystNote(BaseModel):
+    note_id: str
+    author: str
+    body: str
+    created_at: datetime
+
+
+class CaseSummary(BaseModel):
+    case_id: str
+    case_number: str
+    status: str
+    severity: str
+    customer_name: str
+    control_id: str
+    scenario_key: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class TransactionDetail(BaseModel):
+    transaction_id: str
+    source_account: str | None
+    destination_account: str | None
+    amount: float
+    currency: str
+    transaction_type: str
+    timestamp: datetime
+    geography: str
+
+
+class CaseDetail(CaseSummary):
+    alert_id: str
+    run_id: str
+    account: dict
+    customer: dict
+    related_accounts: list[dict]
+    transactions: list[TransactionDetail]
+    triggered_conditions: list[str]
+    expected: dict
+    actual: dict
+    result: str
+    failure_reason: str | None
+    evidence: EvidencePacket | None
+    notes: list[AnalystNote]
+
+
+class GraphNode(BaseModel):
+    id: str
+    type: str
+    label: str
+    status: str | None = None
+    metadata: dict
+
+
+class GraphEdge(BaseModel):
+    id: str
+    source: str
+    target: str
+    type: str
+    label: str
+    highlighted: bool = False
+    metadata: dict
+
+
+class CaseGraph(BaseModel):
+    case_id: str
+    nodes: list[GraphNode]
+    edges: list[GraphEdge]
+
+
+class DashboardResponse(BaseModel):
+    control_health: float | None
+    test_coverage: float | None
+    open_cases: int
+    total_alerts: int
+    last_test_run: datetime | None
+    recent_failures: list[dict]
+    source_health: list[dict]
+    transaction_activity: list[dict]
